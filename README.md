@@ -8,6 +8,7 @@ There are still a few things I would like to do with libary.
 
 1. Add the ability to run the front-end with a command passed in on the command line
 2. Write a Windows service that can run automatically and keep your DVR recordings clean
+3. Protect recordings from automatic removal
 
 # Running the Front-End
 
