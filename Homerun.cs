@@ -40,6 +40,10 @@ namespace HdHomerun
             this.SeriesID = seriesID;
         }
     }
+    public class Protect
+    {
+        public string ProgramId { get; set; }
+    }
     public class Discovery
     {
         public string FriendlyName { get; set; }
@@ -75,6 +79,12 @@ namespace HdHomerun
         public string VideoCodec { get; set; }
         public string AudioCodec { get; set; }
         public string URL { get; set; }
+
+        public Channel()
+        {
+            VideoCodec = "";
+            AudioCodec = "";
+        }
     }
     public class Serial
     {
@@ -95,10 +105,11 @@ namespace HdHomerun
             this.EpisodesToKeep = null;
         }
 
-        /*
-         * Clean
-         * This will remove all the extra recordings beyond what the user wants to keep
-         */
+        /// <summary>
+        /// Clean up any recordings beyond what they want to keep
+        /// </summary>
+        /// <param name="DoClean"></param>
+        /// <returns>The number of recordings removed</returns>
         public int Clean(bool DoClean)
         {
             int RecordingsRemoved = 0;
@@ -112,16 +123,24 @@ namespace HdHomerun
             // Make sure there is a number here.  If not, we intend to keep all the recordings
             if (EpisodesToKeep != null)
             {
+                int count = 0;
+
                 // Find all the episodes after the last one we want to keep
-                var RecordingsToClean = Recordings.FindAll(r => r.Seq > EpisodesToKeep.Value);
-
-                foreach(Recording recording in RecordingsToClean)
+                foreach(Recording recording in Recordings)
                 {
-                    Console.WriteLine($"Seq #{recording.Seq} - {recording.Title}");
-                    RecordingsRemoved++;
+                    // We skip any recording that's protected by the user
+                    if (!recording.Protect)
+                    {
+                        if (++count > this.EpisodesToKeep)
+                        {
+                            AnsiConsole.MarkupLine($"[white on red] Delete -> [/]   Seq #{recording.Seq} - {recording.Title}");
 
-                    recording.Delete(DoClean);
-                    recording.Deleted = true;
+                            recording.Delete(DoClean);
+                            recording.Deleted = true;
+
+                            RecordingsRemoved++;
+                        }
+                    }
                 }
             }
 
@@ -153,11 +172,13 @@ namespace HdHomerun
         public string CmdURL { get; set; }
         public bool Deleted { get; set; }
         public long? FileSize { get; set; }
+        public bool Protect { get; set; }
 
         public Recording()
         {
             Deleted = false;
             FileSize = null;
+            Protect = false;
         }
 
         /// <summary>
@@ -214,7 +235,6 @@ namespace HdHomerun
             }
          }
     }
-    
     internal static class Homerun
     {
         public static Device DeviceInfo;
@@ -222,6 +242,7 @@ namespace HdHomerun
         public static List<Serial> Series = new List<Serial>();
         public static List<Channel> Channels = new List<Channel>();
         public static List<Keep> Keeps = new List<Keep>();
+        public static List<Protect> Protects = new List<Protect>();
 
         /// <summary>
         /// Do the discovery 
@@ -266,6 +287,17 @@ namespace HdHomerun
                     // Save an empty file
                     SaveKeeps();
                 }
+
+                string protectFile = $"{DeviceInfo.DeviceId}_Protects.json";
+
+                if (File.Exists(protectFile))
+                {
+                    Protects = JsonConvert.DeserializeObject<List<Protect>>(File.ReadAllText(protectFile));
+                }
+                else
+                {
+                    SaveProtects();
+                }
             }
             catch (Exception)
             {
@@ -273,10 +305,45 @@ namespace HdHomerun
             } 
         }
 
-        /*
-         * SaveKeeps
-         * Save the keeps data
-         */
+        /// <summary>
+        /// Protect, or unprotect, a recording
+        /// </summary>
+        /// <param name="recording">The recording to protect/unprotect</param>
+        public static void ProtectRecording(Recording recording)
+        {
+            // First determine if it's in the list of protected recordings already
+            Protect protect = Protects.FirstOrDefault(p => p.ProgramId == recording.ProgramID);
+
+            // If we are to protect this recording, add it to the list of protected recordings
+            if (recording.Protect)
+            {
+                if (protect == null)
+                    Protects.Add(new Protect { ProgramId = recording.ProgramID });
+            }
+            else
+            {
+                // Remove it from the list of protected recordings
+                Protects.Remove(protect);
+            }
+
+            // Save the list of protected recordings
+            SaveProtects();
+        }
+
+        /// <summary>
+        /// Save the protected recordings to the json file
+        /// </summary>
+        private static void SaveProtects()
+        {
+            // set the name of the protects file
+            string protectFile = $"{DeviceInfo.DeviceId}_Protects.json";
+            // write the protects info to the file
+            File.WriteAllText(protectFile, JsonConvert.SerializeObject(Protects));
+        }
+        
+        /// <summary>
+        /// Save the serial keep details to a file
+        /// </summary>
         private static void SaveKeeps()
         {
             // Set the name of the keeps file
@@ -307,6 +374,12 @@ namespace HdHomerun
                     foreach (Recording recording in recordings)
                     {
                         recording.Seq = sequence++;
+
+                        // Look for the recording to see if it's protected (not to be deleted)
+                        Protect protect = Protects.FirstOrDefault(p => p.ProgramId == recording.ProgramID);
+                        recording.Protect = (protect != null);
+
+                        // Add the recording to the list of recordings for this serial
                         serial.Recordings.Add(recording);
                     }
                 }

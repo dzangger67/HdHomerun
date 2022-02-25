@@ -66,58 +66,64 @@ namespace HdHomerun
             //  ser 2 keep      4			# keep up to 4 recordings for serial #2 
             //  ser 2 clean					# clean up recordings for serial #2
             string[] parts = command.Split(' ');
-
-            // set the object
-            if (parts.Length > 0)
-                Object = parts[0];
-
-            // The sequence # of the object
-            if (parts.Length > 1)
+            try
             {
-                if (parts[1] == "?")
+                // set the object
+                if (parts.Length > 0)
+                    Object = parts[0];
+
+                // The sequence # of the object
+                if (parts.Length > 1)
                 {
-                    Help = true;
-                }                    
-                else if (parts[1] == "*")
+                    if (parts[1] == "?")
+                    {
+                        Help = true;
+                    }
+                    else if (parts[1] == "*")
+                    {
+                        Seq = null;
+                        All = true;
+                    }
+                    else
+                        Seq = int.Parse(parts[1]);
+                }
+                else
                 {
                     Seq = null;
-                    All = true;
+                    All = false;
+                }
+
+                if (parts.Length > 2)
+                {
+                    Action = parts[2];
                 }
                 else
-                    Seq = int.Parse(parts[1]);
-            }
-            else
-            {
-                Seq = null;
-                All = false;
-            }
+                {
+                    Action = null;
+                }
 
-            if (parts.Length > 2)
-            {
-                Action = parts[2];
-            }
-            else
-            {
-                Action = null;
-            }
-
-            if (parts.Length > 3)
-            {
-                if (parts[3] == "*")
+                if (parts.Length > 3)
+                {
+                    if (parts[3] == "*")
+                    {
+                        Count = null;
+                        All = true;
+                    }
+                    else
+                        Count = int.Parse(parts[3]);
+                }
+                else
                 {
                     Count = null;
-                    All = true;
                 }
-                else
-                    Count = int.Parse(parts[3]);
-            }
-            else
-            {
-                Count = null;
-            }
 
-            // Set valid for now
-            Valid = true;
+                // Set valid for now
+                Valid = true;
+            }
+            catch (Exception)
+            {
+                Valid = false;
+            }          
         }
     }
 }

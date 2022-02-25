@@ -172,17 +172,25 @@ namespace HdHomerun
             table.AddColumns("Seq", "Title", "Series ID");
             table.AddColumn(new TableColumn("Category").RightAligned());
             table.AddColumn(new TableColumn("Recordings").RightAligned());
-            table.AddColumn(new TableColumn("Keep").RightAligned());           
+            table.AddColumn(new TableColumn("Keep").RightAligned());
 
             foreach (Serial serial in Homerun.Series)
             {
+                // System.Diagnostics.Debug.Print($"{serial.Title} @ {Homerun.ToLocalTime(serial.StartTime)}");
                 string recordingsCount = $"[green3_1]{serial.Recordings.Count}[/]";
+                
+                // Get the number of protected recordings for this serial
+                int protectedRecordings = serial.Recordings.Count(r => r.Protect);
 
                 // If we aren't keeping all the episodes, determine if we have too many
                 if (serial.EpisodesToKeep != null && serial.Recordings.Count > serial.EpisodesToKeep.Value)
                 {
                     recordingsCount = $"[red]{serial.Recordings.Count}[/]";
-                }               
+                }
+
+                if (protectedRecordings > 0)
+                    recordingsCount += $" ([cyan]{protectedRecordings}[/])";
+
 
                 table.AddRow("[white on blue]" + serial.Seq.ToString("0#") + "[/]", 
                     PaintValue(serial.Title),
@@ -214,17 +222,15 @@ namespace HdHomerun
             table.AddColumn("Seq");
             table.AddColumn("Guide #");
             table.AddColumn("Guide Name");
-            table.AddColumn("Audio Codec");
-            table.AddColumn("Video Codec");
+            table.AddColumn("A/V Codecs");
             table.AddColumn("URL");
 
             foreach (Channel channel in Homerun.Channels)
             {
                 table.AddRow("[white on blue]" + channel.Seq.ToString("0#") + "[/]",
-                    channel.GuideNumber,
+                    Convert.ToDecimal(channel.GuideNumber).ToString("##0.##").PadLeft(6),
                     channel.GuideName,
-                    String.IsNullOrEmpty(channel.AudioCodec) ? "" : channel.AudioCodec,
-                    channel.VideoCodec,
+                    String.IsNullOrEmpty(channel.AudioCodec) ? "" : channel.AudioCodec + "/" + channel.VideoCodec,
                     channel.URL);
             }
 
@@ -261,6 +267,7 @@ namespace HdHomerun
             if (serial.Recordings.Count > 0)
             {
                 string color = "yellow";
+                int count = 0;
 
                 var table = new Table();
                 table.Border = TableBorder.Horizontal;
@@ -274,13 +281,23 @@ namespace HdHomerun
                     // If we have more recordings than we want to keep, show those in red
                     if (serial.EpisodesToKeep != null)
                     {
-                        if (recording.Seq > serial.EpisodesToKeep.Value)
-                            color = "red";
-                    }
+                        // Keep track of the recoring count; if this is protected, we don't want to count it
+                        if (!recording.Protect)
+                        {
+                            count++;
 
+                            if (count > serial.EpisodesToKeep.Value)
+                                color = "red";
+                            else
+                                color = "yellow";
+                        }
+                        else
+                            color = "green3_1";
+                    }
+        
                     // Add the recording to the table
                     table.AddRow(
-                        "[white on " + (recording.Deleted ? "red" : "blue") + "]" + recording.Seq.ToString("0#") + "[/]",
+                        "[white on " + (recording.Deleted ? "red" : "blue") + "]" + recording.Seq.ToString("0#") + "[/]" + (recording.Protect ? " [white]∞[/]" : " "),
                         PaintValue(Homerun.ToLocalTime(recording.StartTime), color),
                         PaintValue(episodeNumber, color),
                         PaintValue(recording.EpisodeTitle != null ? recording.EpisodeTitle : serial.Title, color),
@@ -319,6 +336,8 @@ namespace HdHomerun
             table.AddRow("", "[white]ser 8 del *[/]", "[green3_1]For serial 8 delete all recordings[/]");
             table.AddRow("ser # keep @", "[white]ser 4 keep 5[/]", "[green3_1]For serial 4 keep at most 5 recordings[/]");
             table.AddRow("", "[white]ser 7 keep *[/]", "[green3_1]For serial 7 keep all recordings[/]");
+            table.AddRow("ser # protect @", "[white]ser 2 protect 6[/]", "[green3_1]Toggle protection for serial 2 recording 6[/]");
+            table.AddRow("", "[white]ser 3 protect *[/]", "[green3_1]Protct all recordings for serial 3[/]");
             table.AddRow("ser # clean", "[white]ser 3 clean[/]", "[green3_1]Remove any recordings for serial 3 beyond what should be kept[/]");
             table.AddRow("", "[white]ser * clean[/]", "[green3_1]Clean up recordings for all serials[/]");
 
@@ -446,11 +465,28 @@ namespace HdHomerun
 
                                             ShowRecordings(ser);
                                         }
+                                        else
+                                        {
+                                            AnsiConsole.MarkupLine(@"[white]No recordings were removed[/]");
+                                        }
                                     }
                                 }
 
                                 if (!Simulate)
                                     Homerun.DoDiscovery();
+                            }
+                            else if (command.Action.Equals("protect"))
+                            {
+                                foreach (Recording recording in serial.Recordings)
+                                {
+                                    if ((command.Count != null && command.Count == recording.Seq && !command.All) || (command.All))
+                                    {
+                                        recording.Protect = !recording.Protect;
+                                        Homerun.ProtectRecording(recording);
+                                    }
+                                }
+
+                                ShowRecordings(serial);
                             }
                             else
                             {
@@ -464,6 +500,64 @@ namespace HdHomerun
                     }
                 }
             }
+            else
+            {
+                AnsiConsole.MarkupLine("[red]Invalid command.  Use ser ? for help.[/]");
+            }
+        }
+
+        /// <summary>
+        /// Process the command; either from command line or prommpt
+        /// </summary>
+        /// <param name="command">This is the command we want to process</param>
+        /// <returns>True if we are to stop the program</returns>
+        private static bool ProcessCommand(string command)
+        {
+            bool done = false;
+
+            // Execute the command
+            if (command.Equals("help") || command.Equals("?"))
+            {
+                ShowHelp();
+            }
+            else if (command.Equals("quit") || command.Equals("q"))
+            {
+                done = true;
+            }
+            else if (command.Equals("info"))
+            {
+                ShowDeviceInfo();
+            }
+            else if (command.StartsWith("ver"))
+            {
+                Verbose = !Verbose;
+            }
+            else if (command.StartsWith("sim"))
+            {
+                Simulate = !Simulate;
+            }
+            else if (command.StartsWith("ser"))
+            {
+                ProcessSerialCommand(command);
+            }
+            else if (command.StartsWith("chan"))
+            {
+                try
+                {
+                    Homerun.GetChannels(command.Contains("-f"));
+                    ShowChannels();
+                }
+                catch (Exception ex)
+                {
+                    ColorConsole.WithRedText.WriteLine(ex.Message);
+                }
+            }
+            else if (command.Length > 0)
+            {
+                ColorConsole.WithRedText.WriteLine($"{command} is an unknown command");
+            }
+
+            return done;
         }
 
         static void Main(string[] args)
@@ -472,68 +566,44 @@ namespace HdHomerun
             Simulate = false;
             Verbose = false;
             bool done = false;
+            string command = "";
 
             // Was anything passed into the command prompt?
-            foreach (string arg in args)
+            for (int i = 0; i < args.Length; i++)
             {
-                if (arg.Equals("/simulate", StringComparison.CurrentCultureIgnoreCase))
+                if (args[i].Equals("/simulate", StringComparison.CurrentCultureIgnoreCase))
                     Simulate = true;
 
-                if (arg.Equals("/verbose", StringComparison.CurrentCultureIgnoreCase))
+                if (args[i].Equals("/verbose", StringComparison.CurrentCultureIgnoreCase))
                     Verbose = true;
-            }
+
+                if (args[i].Equals("/cmd", StringComparison.CurrentCultureIgnoreCase))
+                {
+                    command = args[i + 1];
+                }
+            }            
 
             // Init the device information
             Initalize();
-            ShowSerials();
 
-            do
+            // If no command line was passed in, go to prompt mode
+            if (command.Length == 0)
             {
-                string command = ShowPrompt();
+                ShowSerials();
 
-                // Execute the command
-                if (command.Equals("help") || command.Equals("?"))
+                do
                 {
-                    ShowHelp();
-                }
-                else if (command.Equals("quit") || command.Equals("q"))
-                {
-                    done = true;
-                }
-                else if (command.Equals("info"))
-                {
-                    ShowDeviceInfo();
-                }
-                else if (command.StartsWith("ver"))
-                {
-                    Verbose = !Verbose;
-                }
-                else if (command.StartsWith("sim"))
-                {
-                    Simulate = !Simulate;
-                }
-                else if (command.StartsWith("ser"))
-                {
-                    ProcessSerialCommand(command);
-                }
-                else if (command.StartsWith("chan"))
-                {
-                    try
-                    {
-                        Homerun.GetChannels(command.Contains("-f"));
-                        ShowChannels();
-                    }
-                    catch (Exception ex)
-                    {
-                        ColorConsole.WithRedText.WriteLine(ex.Message);
-                    }
-                }
-                else if (command.Length > 0)
-                {
-                    ColorConsole.WithRedText.WriteLine($"{command} is an unknown command");
-                }
+                    // Show the prompt
+                    command = ShowPrompt();
 
-            } while (!done);
+                    // and process the command
+                    done = ProcessCommand(command);
+                } while (!done);
+            }
+            else
+            {
+                ProcessCommand(command);
+            }            
         }
     }
 }
