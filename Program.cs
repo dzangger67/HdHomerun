@@ -151,6 +151,7 @@ namespace HdHomerun
             ColorConsole.WithBlueBackground.AndWhiteText.Write(text);
             ColorConsole.WithWhiteText.Write("] ");
         }
+
         private static void WriteLineBracketedRedText(string text)
         {
             ColorConsole.WithWhiteText.Write("[");
@@ -315,6 +316,44 @@ namespace HdHomerun
             }
         }
 
+        /// <summary>
+        /// Shows the recording rules for all the tasks
+        /// </summary>
+        private static void ShowRules()
+        {
+            // If we don't have any rules yet, go get them
+            if (Homerun.Rules.Count == 0)
+            {
+                Homerun.GetRules();
+            }
+
+            // Create a table
+            var table = new Table();
+            table.Border(TableBorder.Horizontal);
+            table.Title = new TableTitle("[bold cyan]Recording Rules[/]");
+
+            // Add some columns
+            table.AddColumn(new TableColumn("Prio").Centered());
+            table.AddColumn("Title");
+            table.AddColumn("Series ID");            
+            table.AddColumn(new TableColumn("Category").RightAligned());
+            table.AddColumn(new TableColumn("Channel Only").Centered());
+            table.AddColumn(new TableColumn("Recents?").Centered());
+
+            // Display each rule
+            foreach (Rule rule in Homerun.Rules.OrderByDescending(r => r.Priority))
+            {
+                table.AddRow("[white on blue]" + rule.Priority.ToString("0#") + "[/]",
+                    PaintValue(rule.Title, "yellow"),
+                    PaintValue(rule.SeriesID, "yellow"),
+                    PaintValue(rule.Category, "cyan"),
+                    PaintValue(String.IsNullOrEmpty(rule.ChannelOnly) ? "N/A" : rule.ChannelOnly, "green3_1"),
+                    rule.RecentOnly == 1 ? "Yes" : PaintValue("No", "Red"));
+            }
+
+            AnsiConsole.Write(table);
+        }
+
         private static void WriteErrorMessage(string error)
         {
             ColorConsole.WithRedText.WriteLine(error);
@@ -355,6 +394,7 @@ namespace HdHomerun
             table.AddRow("help, ?", "Shows this help");         
             table.AddRow("info", "Shows detailed information about your HDHomerun");
             table.AddRow("chan", "Shows details about all of your channels");
+            table.AddRow("rules", "Show the recording rules -> Tasks");
             table.AddRow("ser", "Show information about serials and recordings");
             table.AddRow("ser ?", "Show detailed help about the ser command");
             table.AddRow("sim", "Turn simulation on or off. When on, nothing will be deleted");
@@ -467,7 +507,7 @@ namespace HdHomerun
                                         }
                                         else
                                         {
-                                            AnsiConsole.MarkupLine(@"[white]No recordings were removed[/]");
+                                            AnsiConsole.MarkupLine($"[white]No recordings were removed for {ser.Title}[/]");
                                         }
                                     }
                                 }
@@ -527,6 +567,10 @@ namespace HdHomerun
             else if (command.Equals("info"))
             {
                 ShowDeviceInfo();
+            }
+            else if (command.Equals("rules"))
+            {
+                ShowRules();
             }
             else if (command.StartsWith("ver"))
             {

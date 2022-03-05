@@ -22,6 +22,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Spectre.Console;
 
@@ -205,7 +206,7 @@ namespace HdHomerun
             }
             else
             {
-                AnsiConsole.WriteLine("[red]We didn't really delete your recording...[/]");
+                AnsiConsole.MarkupLine("[red]We didn't really delete your recording...[/]");
                 Deleted = true;
             }
         }
@@ -235,14 +236,27 @@ namespace HdHomerun
             }
          }
     }
+    public class Rule
+    {
+        public long RecordingRuleID { get; set; }
+        public string SeriesID { get; set; }
+        public string Title { get; set; }
+        public string Synopsis { get; set; }
+        public string Category { get; set; }
+        public string ImageURL { get; set; }
+        public string ChannelOnly { get; set; }
+        public int RecentOnly { get; set; }
+        public int Priority { get; set; }
+    }
     internal static class Homerun
     {
         public static Device DeviceInfo;
-        public static Discovery DiscoveryInfo;
+        public static Discovery DiscoveryInfo = null;
         public static List<Serial> Series = new List<Serial>();
         public static List<Channel> Channels = new List<Channel>();
         public static List<Keep> Keeps = new List<Keep>();
         public static List<Protect> Protects = new List<Protect>();
+        public static List<Rule> Rules = new List<Rule>();
 
         /// <summary>
         /// Do the discovery 
@@ -253,6 +267,20 @@ namespace HdHomerun
             string sDiscoveryInfoAsJson = WebAPI.GetContents(DeviceInfo.DiscoverURL);
             // Convert the JSON returned into an actual Discovery Info object
             var discoveryInfo = JsonConvert.DeserializeObject<Discovery>(sDiscoveryInfoAsJson);
+
+            DiscoveryInfo = discoveryInfo;
+        }
+
+        /// <summary>
+        /// Do the discovery using Async
+        /// </summary>
+        public static void DoDiscoveryAsync()
+        {
+            // Discover the other details
+            Task<string> sDiscoveryInfoAsJson = WebAPI.GetContentsAsync(DeviceInfo.DiscoverURL);
+
+            // Convert the JSON returned into an actual Discovery Info object
+            var discoveryInfo = JsonConvert.DeserializeObject<Discovery>(sDiscoveryInfoAsJson.ToString());
 
             DiscoveryInfo = discoveryInfo;
         }
@@ -350,6 +378,27 @@ namespace HdHomerun
             string keepsFile = $"{DeviceInfo.DeviceId}_Keeps.json";
             // Write the keeps data to the file
             File.WriteAllText(keepsFile, JsonConvert.SerializeObject(Keeps));
+        }
+
+        /// <summary>
+        /// Get the rules
+        /// </summary>
+        public static void GetRules()
+        {
+            if (DiscoveryInfo == null)
+            {
+                DoDiscovery();
+            }
+            string uri = $"https://api.hdhomerun.com/api/recording_rules?DeviceAuth={DiscoveryInfo.DeviceAuth}";
+
+            string sRulesAsJson = WebAPI.GetContents(uri);
+            var rules = JsonConvert.DeserializeObject<Rule[]>(sRulesAsJson);
+
+            // Add each rule
+            foreach(Rule rule in rules)
+            {
+                Rules.Add(rule);
+            }    
         }
 
         /*

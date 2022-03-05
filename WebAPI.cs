@@ -95,7 +95,15 @@ namespace HdHomerun
             }
         }
 
-        /// <summary>
+        public static async Task<string> GetContentsAsync(string uri)
+        {
+            var client = new WebClient();
+            string data = await client.DownloadStringTaskAsync(uri);
+
+            return data;
+        }
+
+        /// <summary>c
         /// Reads the contents of a uri and returns the results.
         /// </summary>
         /// <param name="uri">This is the uri of the source we are trying to read</param>
