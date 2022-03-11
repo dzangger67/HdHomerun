@@ -23,6 +23,7 @@ using System.Linq;
 using Spectre.Console;
 using FluentColorConsole;
 using System.Text;
+using System.Collections.Generic;
 
 namespace HdHomerun
 {
@@ -189,16 +190,14 @@ namespace HdHomerun
                     recordingsCount = $"[red]{serial.Recordings.Count}[/]";
                 }
 
-                if (protectedRecordings > 0)
-                    recordingsCount += $" ([cyan]{protectedRecordings}[/])";
-
-
                 table.AddRow("[white on blue]" + serial.Seq.ToString("0#") + "[/]", 
                     PaintValue(serial.Title),
                     PaintValue(serial.SeriesID),
                     PaintValue(serial.Category, "cyan"),
                     recordingsCount,
-                    (serial.EpisodesToKeep.HasValue ? $"[green3_1]{serial.EpisodesToKeep.ToString()}[/]" : "[white]∞[/]"));
+                    (protectedRecordings > 0 ? $"([cyan]{protectedRecordings}[/]) " : " ") +
+                    (serial.EpisodesToKeep.HasValue ? $"[green3_1]{serial.EpisodesToKeep.ToString()}[/]" : "[white]∞[/]")                    
+                );
             }
             
             // Render the table to the console
@@ -394,6 +393,8 @@ namespace HdHomerun
             table.AddRow("help, ?", "Shows this help");         
             table.AddRow("info", "Shows detailed information about your HDHomerun");
             table.AddRow("chan", "Shows details about all of your channels");
+            table.AddRow("new", "Shows all the recordings (newest first)");
+            table.AddRow("new #", "Shows the newest # recordings");
             table.AddRow("rules", "Show the recording rules -> Tasks");
             table.AddRow("ser", "Show information about serials and recordings");
             table.AddRow("ser ?", "Show detailed help about the ser command");
@@ -547,6 +548,50 @@ namespace HdHomerun
         }
 
         /// <summary>
+        /// Shows the newest recordings
+        /// </summary>
+        /// <param name="showsToDisplay">The number of shows to display</param>
+        private static void ShowNewRecordings(Command command)
+        {
+            int seq = 1;
+            List<Recording> recordings = new List<Recording>();
+
+            foreach (Serial serial in Homerun.Series)
+            {
+                foreach(Recording serialRecording in serial.Recordings)
+                {
+                    recordings.Add(serialRecording);    
+                }
+            }
+
+            // How many to display
+            int count = (command.Seq != null ? command.Seq.Value : recordings.Count);
+
+            // Create a table
+            var table = new Table();
+            table.Border(TableBorder.Horizontal);
+            table.Title = new TableTitle($"[bold cyan]Newest {count} Recordings[/]");
+            table.AddColumns("Seq", "Series", "Start Time", "Episode", "Title");
+
+            foreach (Recording newRecording in recordings.OrderByDescending(r => r.StartTime).Take(count))
+            {
+                Serial serial = Homerun.Series.FirstOrDefault(s => s.SeriesID == newRecording.SeriesID);    
+
+                string episodeNumber = String.IsNullOrEmpty(newRecording.EpisodeNumber) ? "?" : newRecording.EpisodeNumber;
+
+                // Add the recording to the table
+                table.AddRow(
+                    "[white on " + (newRecording.Deleted ? "red" : "blue") + "]" + seq++.ToString("0#") + "[/]" + (newRecording.Protect ? " [white]∞[/]" : " "),
+                    PaintValue(serial.Title, "yellow"),
+                    PaintValue(Homerun.ToLocalTime(newRecording.StartTime), "yellow"),
+                    PaintValue(episodeNumber, "yellow"),
+                    PaintValue(newRecording.EpisodeTitle != null ? newRecording.EpisodeTitle : "", "yellow"));
+            }
+
+            AnsiConsole.Write(table);
+        }
+
+        /// <summary>
         /// Process the command; either from command line or prommpt
         /// </summary>
         /// <param name="command">This is the command we want to process</param>
@@ -571,6 +616,11 @@ namespace HdHomerun
             else if (command.Equals("rules"))
             {
                 ShowRules();
+            }
+            else if (command.StartsWith("new"))
+            {
+                Command userCommand = new Command(command);
+                ShowNewRecordings(userCommand);
             }
             else if (command.StartsWith("ver"))
             {
