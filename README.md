@@ -6,10 +6,10 @@ I wrote a front-end application that uses this library and it allows me to manag
 
 There are still a few things I would like to do with libary.
 
-1. Add the ability to run the front-end with a command passed in on the command line <done>
+1. Add the ability to run the front-end with a command passed in on the command line -- Done
 2. Write a Windows service that can run automatically and keep your DVR recordings clean
-3. Protect recordings from automatic removal <done>
-4. Show the newest recordings <done>
+3. Protect recordings from automatic removal -- Done
+4. Show the newest recordings -- Done
 
 # Running the Front-End
 
