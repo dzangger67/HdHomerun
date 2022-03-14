@@ -382,6 +382,34 @@ namespace HdHomerun
             AnsiConsole.Write(table);
         }
 
+        private static void ShowStatus()
+        {
+            var table = new Table();
+            table.Title = new TableTitle("[bold cyan]Status[/]");
+            table.AddColumns("Resource", "Channel/Name");
+
+            foreach(Status status in Homerun.Statuses)
+            {
+                if (status.Resource.StartsWith("tuner"))
+                    table.AddRow(PaintValue(status.Resource, "yellow"),
+                                 PaintValue(status.VctNumber, "yellow"));
+                else
+                    table.AddRow(PaintValue(status.Resource, "yellow"),
+                                 PaintValue(status.Name.EscapeMarkup(), "yellow"));
+            }
+
+            AnsiConsole.Write(table);
+        }
+
+        /// <summary>
+        /// Get the current status of the device
+        /// </summary>
+        private static void GetStatus()
+        {
+            Homerun.GetStatus();
+            ShowStatus();
+        }
+
         /// <summary>
         /// Shows the command available to the user
         /// </summary>
@@ -399,6 +427,7 @@ namespace HdHomerun
             table.AddRow("ser", "Show information about serials and recordings");
             table.AddRow("ser ?", "Show detailed help about the ser command");
             table.AddRow("sim", "Turn simulation on or off. When on, nothing will be deleted");
+            table.AddRow("status", "Show the current status of the device");
             table.AddRow("ver", "Turn verbose on or off. If a recording has a synopsis, it will be displayed");
             table.AddRow("quit, q", "Quits the application");
 
@@ -616,6 +645,10 @@ namespace HdHomerun
             else if (command.Equals("rules"))
             {
                 ShowRules();
+            }
+            else if (command.Equals("status"))
+            {
+                GetStatus();
             }
             else if (command.StartsWith("new"))
             {
