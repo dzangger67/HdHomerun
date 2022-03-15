@@ -248,6 +248,20 @@ namespace HdHomerun
         public int RecentOnly { get; set; }
         public int Priority { get; set; }
     }
+    public class Status
+    {
+        public string Resource { get; set; }
+        public string VctNumber { get; set; }
+        public string VctName { get; set; }
+        public string Frequency { get; set; }
+        public int SignalStrengthPercent { get; set; }
+        public int SignalQualityPercent { get; set; }
+        public int SymbolQualityPercent { get; set; }
+        public string TargetIP { get; set; }
+        public int NetworkRate { get; set; }
+        public string Name { get; set; }
+    }
+
     internal static class Homerun
     {
         public static Device DeviceInfo;
@@ -257,6 +271,7 @@ namespace HdHomerun
         public static List<Keep> Keeps = new List<Keep>();
         public static List<Protect> Protects = new List<Protect>();
         public static List<Rule> Rules = new List<Rule>();
+        public static List<Status> Statuses = new List<Status>();
 
         /// <summary>
         /// Get's the current log file
@@ -352,6 +367,23 @@ namespace HdHomerun
         }
 
         /// <summary>
+        /// Get the current status of the device
+        /// </summary>
+        public static void GetStatus()
+        {
+            string uri = $"{DiscoveryInfo.BaseURL}/status.json";
+            string sStatusAsJson = WebAPI.GetContents(uri);
+            Statuses.Clear();
+
+            var statuses = JsonConvert.DeserializeObject<Status[]>(sStatusAsJson);
+
+            foreach (Status status in statuses)
+            {
+                Statuses.Add(status);
+            }
+        }
+
+        /// <summary>
         /// Protect, or unprotect, a recording
         /// </summary>
         /// <param name="recording">The recording to protect/unprotect</param>
@@ -407,8 +439,8 @@ namespace HdHomerun
             {
                 DoDiscovery();
             }
-            string uri = $"https://api.hdhomerun.com/api/recording_rules?DeviceAuth={DiscoveryInfo.DeviceAuth}";
 
+            string uri = $"https://api.hdhomerun.com/api/recording_rules?DeviceAuth={DiscoveryInfo.DeviceAuth}";
             string sRulesAsJson = WebAPI.GetContents(uri);
             var rules = JsonConvert.DeserializeObject<Rule[]>(sRulesAsJson);
 
