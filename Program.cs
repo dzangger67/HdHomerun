@@ -24,6 +24,7 @@ using Spectre.Console;
 using FluentColorConsole;
 using System.Text;
 using System.Collections.Generic;
+using System.IO;
 
 namespace HdHomerun
 {
@@ -421,6 +422,9 @@ namespace HdHomerun
             table.AddRow("help, ?", "Shows this help");         
             table.AddRow("info", "Shows detailed information about your HDHomerun");
             table.AddRow("chan", "Shows details about all of your channels");
+            table.AddRow("log", "Show the log");
+            table.AddRow("log -save", "Save the log to a file with current timestamp");
+            table.AddRow("log abc", "Search the log for text matching abc");
             table.AddRow("new", "Shows all the recordings (newest first)");
             table.AddRow("new #", "Shows the newest # recordings");
             table.AddRow("rules", "Show the recording rules -> Tasks");
@@ -621,6 +625,76 @@ namespace HdHomerun
         }
 
         /// <summary>
+        /// Show the current log
+        /// </summary>
+        private static void ShowLog(Command command)
+        {
+            string log = Homerun.GetLog();
+            string[] lines = log.Split('\r', '\n');
+
+            // Do we want to save the log?
+            bool SaveLog = false;
+
+            if (!String.IsNullOrEmpty(command.Action) && command.Action.Equals("-save", StringComparison.CurrentCultureIgnoreCase))
+                SaveLog = true;
+
+            if (SaveLog)
+            {
+                string filePath = $"log-{DateTime.Now:dd-MMM-yyyy HHmmss}.txt";
+
+                using (StreamWriter outputFile = new StreamWriter(filePath))
+                {
+                    foreach(string line in lines)   
+                        outputFile.WriteLine(line);
+                }
+
+                AnsiConsole.MarkupLine($"Log saved to [cyan]{filePath}[/]");
+
+                return;
+            }
+
+            // Create a table if we are not saving the log
+            var table = new Table();             
+            table.Border(TableBorder.Horizontal);
+            table.Title = new TableTitle($"[bold cyan]Log[/]");
+            table.AddColumns("Timestamp", "Message");
+
+            // Show each line of the log
+            foreach (string line in lines)
+            {
+                // Look for the separation between the timestamp and message
+                int index = line.IndexOf(' ');
+
+                if (index != -1)
+                {
+                    string timeStamp = line.Substring(0, 17);
+                    DateTime dt = new DateTime(int.Parse(timeStamp.Substring(0, 4)),
+                                               int.Parse(timeStamp.Substring(4, 2)),
+                                               int.Parse(timeStamp.Substring(6, 2)),
+                                               int.Parse(timeStamp.Substring(9, 2)),
+                                               int.Parse(timeStamp.Substring(12, 2)),
+                                               int.Parse(timeStamp.Substring(15, 2))).ToLocalTime();
+
+                    string sTimestamp = dt.ToString("dd-MMM-yy hh:mm:ss tt");
+                    string sMessage = line.Substring(index + 1, line.Length - (index + 1));
+
+                    if ((!SaveLog && command.Action == null) || 
+                        (command.Action != null && sMessage.ToLower().Contains(command.Action.ToLower())))
+                    {
+                        // Add the row to the table
+                        table.AddRow(
+                            PaintValue(sTimestamp, "cyan"),
+                            PaintValue(sMessage, "yellow"));
+                    }
+                }
+            }
+
+            // Show the log
+            if (!SaveLog)
+                AnsiConsole.Write(table);
+        }
+
+        /// <summary>
         /// Process the command; either from command line or prommpt
         /// </summary>
         /// <param name="command">This is the command we want to process</param>
@@ -646,9 +720,15 @@ namespace HdHomerun
             {
                 ShowRules();
             }
+            else if (command.StartsWith("log"))
+            {
+                Command userCommand = new Command(command);
+                ShowLog(userCommand);
+            }
             else if (command.Equals("status"))
             {
                 GetStatus();
+
             }
             else if (command.StartsWith("new"))
             {

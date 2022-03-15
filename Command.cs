@@ -50,6 +50,7 @@ namespace HdHomerun
 
             return $"Obj [{Object}]  Seq [{seq}]  All [{All}] Action [{action}]  Count [{Count}]";
         }
+
         public Command(string command)
         {
             // Set some defaults
@@ -85,7 +86,19 @@ namespace HdHomerun
                         All = true;
                     }
                     else
-                        Seq = int.Parse(parts[1]);
+                    {
+                        try
+                        {
+                            Seq = int.Parse(parts[1]);
+                        }
+                        catch (Exception)
+                        {
+                            if (Object.Equals("log", StringComparison.CurrentCultureIgnoreCase))
+                            {
+                                Action = parts[1];
+                            }
+                        }                        
+                    }
                 }
                 else
                 {
@@ -93,30 +106,32 @@ namespace HdHomerun
                     All = false;
                 }
 
-                if (parts.Length > 2)
+                if (!Object.Equals("log", StringComparison.CurrentCultureIgnoreCase))
                 {
-                    Action = parts[2];
-                }
-                else
-                {
-                    Action = null;
-                }
-
-                if (parts.Length > 3)
-                {
-                    if (parts[3] == "*")
+                    if (parts.Length > 2)
                     {
-                        Count = null;
-                        All = true;
+                        Action = parts[2];
                     }
                     else
-                        Count = int.Parse(parts[3]);
-                }
-                else
-                {
-                    Count = null;
-                }
+                    {
+                        Action = null;
+                    }
 
+                    if (parts.Length > 3)
+                    {
+                        if (parts[3] == "*")
+                        {
+                            Count = null;
+                            All = true;
+                        }
+                        else
+                            Count = int.Parse(parts[3]);
+                    }
+                    else
+                    {
+                        Count = null;
+                    }
+                }
                 // Set valid for now
                 Valid = true;
             }
