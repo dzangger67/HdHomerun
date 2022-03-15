@@ -259,6 +259,24 @@ namespace HdHomerun
         public static List<Rule> Rules = new List<Rule>();
 
         /// <summary>
+        /// Get's the current log file
+        /// </summary>
+        /// <returns></returns>
+        public static string GetLog()
+        {
+            string uri = DiscoveryInfo.BaseURL + "/log.html";
+
+            string sLogContents = WebAPI.GetContents(uri);
+
+            int index1 = sLogContents.IndexOf("<pre>");
+            int index2 = sLogContents.IndexOf("</pre>");
+
+            string log = sLogContents.Substring(index1 + 6, index2 - index1 - 6);       
+
+            return log;
+        }
+
+        /// <summary>
         /// Do the discovery 
         /// </summary>
         public static void DoDiscovery()
