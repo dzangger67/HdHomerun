@@ -82,14 +82,14 @@ namespace HdHomerun
 
             float FreePct = ((float)Homerun.DiscoveryInfo.FreeSpace / (float)Homerun.DiscoveryInfo.TotalSpace) * 100;
             var table4 = new Table();
-            table4.AddColumns("Storage URL / Storage ID", "Usage - Total Space (" + Homerun.DiscoveryInfo.TotalSpace / 1024 / 1024 / 1024 + " GB)");
+            table4.AddColumns("Storage URL / Storage ID", "Usage - Total Space (" + Homerun.DiscoveryInfo.TotalSpace / 1000 / 1000 / 1000 + " GB)");
             table4.AddRow(new Markup(PaintValue(Homerun.DiscoveryInfo.StorageURL + Environment.NewLine + Homerun.DiscoveryInfo.StorageID)),
                  new BarChart()
                     .Width(50)
                     .Label("")
                     .CenterLabel()
-                    .AddItem("Free (" + Homerun.DiscoveryInfo.FreeSpace/1024/1024/1024 + " GB)", Math.Round(FreePct), Color.Green)
-                    .AddItem("Used (" + Homerun.DiscoveryInfo.UsedSpace/1024/1024/1024 + " GB)", 100 - Math.Round(FreePct), Color.Yellow));
+                    .AddItem("% Free (" + Homerun.DiscoveryInfo.FreeSpace/1000/1000/1000 + " GB)", Math.Round(FreePct), Color.Green)
+                    .AddItem("% Used (" + Homerun.DiscoveryInfo.UsedSpace/1000/1000/1000 + " GB)", 100 - Math.Round(FreePct), Color.Yellow));
             AnsiConsole.Write(table4);
         }
 

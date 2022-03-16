@@ -224,7 +224,7 @@ namespace HdHomerun
                 if (FileSize == null)
                 {
                     long fileSize = WebAPI.GetRecoringFileSize(this.PlayURL);
-                    FileSize = (fileSize / 1024 / 1024);
+                    FileSize = (fileSize / 1000 / 1000);
                 }
 
                 // return the filesize
