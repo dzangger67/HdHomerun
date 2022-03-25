@@ -32,6 +32,7 @@ namespace HdHomerun
     {
         public static bool Simulate { get; set; }
         public static bool Verbose { get; set; }
+        public static DateTime? lastStatusCheck { get; set; }
 
         private static string PaintValue(string value)
         {
@@ -133,7 +134,9 @@ namespace HdHomerun
         private static string ShowPrompt()
         {
             Console.WriteLine();
-            AnsiConsole.Markup("[green3_1 on black]HDHomerun" + (Simulate ? " ([white on red]sim[/])" : "") + (Verbose ? "([white on gray]ver[/])" : "") + " >[/]");
+            double FreePct = Math.Round(((float)Homerun.DiscoveryInfo.FreeSpace / (float)Homerun.DiscoveryInfo.TotalSpace) * 100);
+
+            AnsiConsole.Markup("[green3_1 on black]HDHomerun (" + CurrentTunerStatus() + " Free:" + FreePct + "%)" + (Simulate ? " ([white on red]sim[/])" : "") + (Verbose ? "([white on gray]ver[/])" : "") + " >[/]");
             string command = Console.ReadLine();
  
             // clean up the command before we return it
@@ -302,7 +305,7 @@ namespace HdHomerun
                         PaintValue(Homerun.ToLocalTime(recording.StartTime), color),
                         PaintValue(episodeNumber, color),
                         PaintValue(recording.EpisodeTitle != null ? recording.EpisodeTitle : serial.Title, color),
-                        PaintValue(recording.GetFileSize().ToString("##0,###") + " MB", color)
+                        PaintValue(recording.GetFileSize().ToString("###,###") + " MB", color)
                     );
 
                     // If verbose is on, and there is a synopsis, show it
@@ -383,6 +386,33 @@ namespace HdHomerun
             AnsiConsole.Write(table);
         }
 
+        /// <summary>
+        /// Show the tuner status in with red dots when recording and green when idle
+        /// </summary>
+        /// <returns></returns>
+        private static string CurrentTunerStatus()
+        {
+            string temp = "";
+            int tuner = 0;
+
+            // Do we need to refresh the homerun status?
+            GetHomerunStatuses();
+
+            foreach (Status status in Homerun.Statuses.FindAll(s => s.Resource.StartsWith("tuner")))
+            {
+                if (status.Frequency != null)
+                {
+                    temp += $"[white on red1]{tuner++}[/]";
+                }
+                else
+                {
+                    temp += $"[white on darkgreen]{tuner++}[/]";
+                }
+            }
+
+            return temp;
+        }
+
         private static void ShowStatus()
         {
             var table = new Table();
@@ -403,11 +433,29 @@ namespace HdHomerun
         }
 
         /// <summary>
+        /// Simply determine if we need to get the current homerun status
+        /// </summary>
+        private static void GetHomerunStatuses()
+        {
+            // Do we need to refresh the homerun status?
+            if (lastStatusCheck == null || DateTime.Now >= lastStatusCheck || Homerun.Statuses.Count == 0)
+            {
+                // Get the updated status
+                Homerun.GetStatus();
+                Homerun.DoDiscovery();
+
+                // And set time when we need to do it again
+                lastStatusCheck = DateTime.Now.AddMinutes(1);
+            }
+        }
+
+        /// <summary>
         /// Get the current status of the device
         /// </summary>
         private static void GetStatus()
         {
-            Homerun.GetStatus();
+            // Get the latest statuses (every minute)
+            GetHomerunStatuses();
             ShowStatus();
         }
 
@@ -774,6 +822,7 @@ namespace HdHomerun
             Verbose = false;
             bool done = false;
             string command = "";
+            lastStatusCheck = null;
 
             // Was anything passed into the command prompt?
             for (int i = 0; i < args.Length; i++)

@@ -50,6 +50,9 @@
   <PropertyGroup>
     <StartupObject>HdHomerun.Program</StartupObject>
   </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>hdhomerun.ico</ApplicationIcon>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="FluentColorConsole, Version=2.0.0.1, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>packages\FluentColorConsole.2.0.1\lib\netstandard2.0\FluentColorConsole.dll</HintPath>
@@ -104,6 +107,9 @@
       <ProductName>.NET Framework 3.5 SP1</ProductName>
       <Install>false</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="hdhomerun.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
