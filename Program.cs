@@ -732,7 +732,7 @@ namespace HdHomerun
                         // Add the row to the table
                         table.AddRow(
                             PaintValue(sTimestamp, "cyan"),
-                            PaintValue(sMessage, "yellow"));
+                            PaintValue(sMessage.EscapeMarkup(), "yellow"));
                     }
                 }
             }
@@ -859,6 +859,8 @@ namespace HdHomerun
             else
             {
                 ProcessCommand(command);
+                Console.WriteLine("Press any key");
+                Console.ReadKey();
             }            
         }
     }
